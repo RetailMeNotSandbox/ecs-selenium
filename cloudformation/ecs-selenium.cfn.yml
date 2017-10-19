@@ -1,0 +1,761 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Mappings:
+  AMIRegionMap:
+    # amzn-ami-2017.03.g-amazon-ecs-optimized, http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+    ap-northeast-1:
+      "64": "ami-21815747"
+    ap-northeast-2:
+      "64": "ami-4f08e82d"
+    ap-southeast-1:
+      "64": "ami-99f588fa"
+    ap-southeast-2:
+      "64": "ami-4f08e82d"
+    ca-central-1:
+      "64": "ami-9b54edff"
+    eu-central-1:
+      "64": "ami-40d5672f"
+    eu-west-1:
+      "64": "ami-13f7226a"
+    eu-west-2:
+      "64": "ami-eb62708f"
+    us-east-1:
+      "64": "ami-ec33cc96"
+    us-east-2:
+      "64": "ami-34032e51"
+    us-west-1:
+      "64": "ami-d5d0e0b5"
+    us-west-2:
+      "64": "ami-29f80351"
+Parameters:
+  VpcId:
+    Type: "AWS::EC2::VPC::Id"
+    Description: VpcId of your existing Virtual Private Cloud (VPC)
+    ConstraintDescription: must be the VPC Id of an existing Virtual Private Cloud.
+  SubnetIds:
+    Type: List<String>
+    Description: A comma-delimitted list of SubnetIds in your Virtual Private Cloud (VPC)
+  HubInstanceType:
+    Description: Hub instance type
+    Type: String
+    Default: c4.xlarge
+  NodeInstanceType:
+    Description: Node instance type
+    Type: String
+    Default: c4.xlarge
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instances
+    Type: "AWS::EC2::KeyPair::KeyName"
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+  AdminCIDR:
+    Type: String
+    Default: 10.0.0.0/8
+    Description: CIDR with SSH access for management
+  MaxSpotBidPrice:
+    Type: Number
+    Default: 0.05
+    Description: Maximum price to bid for Spot Instances
+  DesiredFleetCapacity:
+    Type: Number
+    Default: 1
+    Description: Desired number of Spot Instances to request
+  DesiredChromeNodes:
+    Type: Number
+    Default: 1
+    Description: Desired number of Chrome nodes
+  DesiredFirefoxNodes:
+    Type: Number
+    Default: 1
+    Description: Desired number of Chrome nodes
+  NodeChromeImage:
+    Type: String
+    Description: URI to the ecs-node-chrome image.
+  NodeFirefoxImage:
+    Type: String
+    Description: URI to the ecs-node-firefox image.
+  DomainName:
+    Type: String
+    Default: example.com
+    Description: Domain for VPC Hosted Zone.
+  ScaleDownCron:
+    Type: String
+    Default: 0 0 * * *
+    Description: Cron expression for scaling down the nodes to the default capacity (DesiredChromeNodes, DesiredFirefoxNodes).
+
+Resources:
+
+  ###################################
+  #              DNS                #
+  ###################################
+
+  SeleniumHostedZone:
+    Type: "AWS::Route53::HostedZone"
+    Properties:
+      HostedZoneConfig:
+        Comment: "selenium-ecs hosted zone"
+      Name: !Ref DomainName
+      VPCs:
+        -
+          VPCId: !Ref VpcId
+          VPCRegion: !Ref "AWS::Region"
+
+  ChromeRecord:
+    Type: "AWS::Route53::RecordSet"
+    Properties:
+      HostedZoneId: !Ref SeleniumHostedZone
+      Comment: Record for Chrome Hub.
+      Name: !Sub chrome.${DomainName}.
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt HubLoadBalancer.DNSName
+        HostedZoneId: !GetAtt HubLoadBalancer.CanonicalHostedZoneID
+
+  FirefoxRecord:
+    Type: "AWS::Route53::RecordSet"
+    Properties:
+      HostedZoneId: !Ref SeleniumHostedZone
+      Comment: Record for Firefox Hub.
+      Name: !Sub firefox.${DomainName}.
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt HubLoadBalancer.DNSName
+        HostedZoneId: !GetAtt HubLoadBalancer.CanonicalHostedZoneID
+
+  ###################################
+  #              HUB                #
+  ###################################
+
+  HubRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+      Policies:
+        - PolicyName: WriteCloudWatchMetrics
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "cloudwatch:PutMetricData"
+                Effect: "Allow"
+                Resource: "*"
+        - PolicyName: ServiceScaler
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "ecs:DescribeServices"
+                  - "ecs:UpdateService"
+                Effect: "Allow"
+                Resource: "*"
+
+  HubInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+        - !Ref HubRole
+
+  HubSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: ecs-selenium-hub
+      GroupDescription: ECS Selenium Hub Security Group
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref AdminCIDR
+      - IpProtocol: tcp
+        FromPort: 4444
+        ToPort: 4444
+        SourceSecurityGroupId: !GetAtt HubLoadBalancerSecurityGroup.GroupId
+      - IpProtocol: tcp
+        FromPort: 4455
+        ToPort: 4455
+        SourceSecurityGroupId: !GetAtt HubLoadBalancerSecurityGroup.GroupId
+
+  HubAutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      DesiredCapacity: 1
+      LaunchConfigurationName: !Ref HubLaunchConfig
+      MaxSize: 1
+      MinSize: 1
+      VPCZoneIdentifier: !Ref SubnetIds
+      TargetGroupARNs:
+      - !Ref ChromeTargetGroup
+      - !Ref FirefoxTargetGroup
+      Tags:
+      - Key: Name
+        Value: "ecs-selenium-hub"
+        PropagateAtLaunch: true
+
+  HubLaunchConfig:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Metadata:
+      "AWS::CloudFormation::Init":
+        config:
+          files:
+            '/usr/local/bin/scaler':
+              mode: '000744'
+              owner: root
+              group: root
+              content: !Sub |
+                #!/usr/bin/env python
+
+                import os
+                import logging
+                import argparse
+                import boto3
+                import requests
+
+                logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+                logging.getLogger("boto3").setLevel(logging.WARNING)
+                logging.getLogger("botocore").setLevel(logging.WARNING)
+                logging.getLogger("urllib3").setLevel(logging.WARNING)
+                logging.getLogger("requests").setLevel(logging.WARNING)
+                logger = logging.getLogger(__name__)
+
+                DEFAULT_CAPACITY = {
+                    "ecs-node-chrome": ${DesiredChromeNodes},
+                    "ecs-node-firefox": ${DesiredFirefoxNodes}
+                }
+
+                ecs = boto3.client("ecs", region_name="${AWS::Region}")
+
+
+                def get_unsatisfied_demand(host, port):
+                    data = requests.get("http://%s:%s/grid/api/hub/" % (host, port), timeout=20.0).json()
+                    pending = data["newSessionRequestCount"]
+                    return pending
+
+
+                def get_running_count(cluster, service):
+                    for svc in ecs.describe_services(cluster=cluster, services=[service])["services"]:
+                        if svc["serviceName"] == service:
+                            return svc["runningCount"]
+
+
+                def update_service(cluster, service, desired):
+                    logger.info("Updating desiredCount for service '%s' to %d...", service, desired)
+                    ecs.update_service(
+                        cluster=cluster,
+                        service=service,
+                        desiredCount=desired,
+                    )
+
+
+                def main():
+                    parser = argparse.ArgumentParser(description="Check hub demand and update service.")
+                    parser.add_argument("--cluster", required=True, help="cluster name")
+                    parser.add_argument("--direction", default="up", choices=["up", "down"])
+                    parser.add_argument("--service", choices=["ecs-node-chrome", "ecs-node-firefox"])
+                    parser.add_argument("--host", default="localhost", help="hostname for the server to be polled")
+                    parser.add_argument("--port", help="port for the server to be polled")
+                    args = parser.parse_args()
+
+                    u_demand = get_unsatisfied_demand(args.host, args.port)
+                    running = get_running_count(args.cluster, args.service)
+
+                    if args.direction == "up" and u_demand > 0:
+                        desired = u_demand + running
+                        update_service(args.cluster, args.service, desired)
+                    elif args.direction == "down" and u_demand == 0 and running > DEFAULT_CAPACITY[args.service]:
+                        update_service(args.cluster, args.service, DEFAULT_CAPACITY[args.service])
+
+
+                if __name__ == "__main__":
+                    main()
+
+            '/etc/cron.d/firefox-scaler':
+              mode:  '000644'
+              owner: root
+              group: root
+              content: !Sub |
+                */2 * * * * root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-firefox --port 4455 >> /var/log/ecs-selenium/firefox.log 2>&1
+                ${ScaleDownCron} root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-firefox --port 4455 --direction down >> /var/log/ecs-selenium/firefox.log 2>&1
+            '/etc/cron.d/chrome-scaler':
+              mode:  '000644'
+              owner: root
+              group: root
+              content: !Sub |
+                */2 * * * * root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-chrome --port 4444 >> /var/log/ecs-selenium/chrome.log 2>&1
+                ${ScaleDownCron} root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-chrome --port 4444 --direction down >> /var/log/ecs-selenium/chrome.log 2>&1
+    Properties:
+      AssociatePublicIpAddress: true
+      IamInstanceProfile: !Ref HubInstanceProfile
+      ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
+      InstanceMonitoring: true
+      InstanceType: !Ref HubInstanceType
+      KeyName: !Ref KeyName
+      SecurityGroups:
+      - !Ref HubSecurityGroup
+      UserData:
+        "Fn::Base64":
+          "Fn::Sub": |
+            #!/bin/bash -e
+            yum update -y ecs-init
+            echo "ECS_CLUSTER=${HubCluster}" > /etc/ecs/ecs.config
+            yum install -y aws-cfn-bootstrap python27-pip
+            pip install boto3 requests
+            mkdir -p /var/log/ecs-selenium/
+            /opt/aws/bin/cfn-init --stack ${AWS::StackName} --region ${AWS::Region} --resource HubLaunchConfig --verbose
+
+  HubLoadBalancerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: ecs-selenium-hub-lb1
+      GroupDescription: ECS Selenium Hub Load Balancer Security Group
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 4444
+        ToPort: 4444
+        CidrIp: !Ref AdminCIDR
+      - IpProtocol: tcp
+        FromPort: 4444
+        ToPort: 4444
+        SourceSecurityGroupId: !GetAtt NodeSecurityGroup.GroupId
+
+  HubLoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Scheme: internal
+      SecurityGroups:
+      - !Ref HubLoadBalancerSecurityGroup
+      Subnets: !Ref SubnetIds
+
+  ChromeTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      HealthCheckIntervalSeconds: 60
+      HealthCheckPath: /
+      HealthCheckPort: 4444
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 30
+      Name: ecs-selenium-hub-chrome
+      Port: 4444
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VpcId
+
+  FirefoxTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      HealthCheckIntervalSeconds: 60
+      HealthCheckPath: /
+      HealthCheckPort: 4455
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 30
+      Name: ecs-selenium-hub-firefox
+      Port: 4455
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VpcId
+
+  HubListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      LoadBalancerArn: !Ref HubLoadBalancer
+      DefaultActions:
+      - TargetGroupArn: !Ref ChromeTargetGroup
+        Type: forward
+      Port: 4444
+      Protocol: HTTP
+
+  ChromeDomainRule:
+    Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref ChromeTargetGroup
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub chrome.${DomainName}
+      ListenerArn: !Ref HubListener
+      Priority: 1
+
+  FirefoxDomainRule:
+    Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref FirefoxTargetGroup
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub firefox.${DomainName}
+      ListenerArn: !Ref HubListener
+      Priority: 2
+
+  HubCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: ecs-selenium-hub
+
+  ChromeHubService:
+    Type: "AWS::ECS::Service"
+    Properties:
+      Cluster: !Ref HubCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 1
+      ServiceName: ecs-selenium-hub-chrome
+      TaskDefinition: !Ref ChromeHubTask
+
+  ChromeHubTask:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Family: ecs-selenium-hub-chrome
+      NetworkMode: bridge
+      ContainerDefinitions:
+        - Environment:
+            - Name: SE_OPTS
+              Value: -jettyThreads 1024
+          Essential: True
+          Image: selenium/hub
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref HubLogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: ecs-hub-chrome
+          MemoryReservation: 2048
+          Name: ecs-selenium-hub-chrome
+          PortMappings:
+            - ContainerPort: 4444
+              HostPort: 4444
+              Protocol: tcp
+
+  FirefoxHubService:
+    Type: "AWS::ECS::Service"
+    Properties:
+      Cluster: !Ref HubCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 1
+      ServiceName: ecs-selenium-hub-firefox
+      TaskDefinition: !Ref FirefoxHubTask
+
+  FirefoxHubTask:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Family: ecs-selenium-hub-firefox
+      NetworkMode: bridge
+      ContainerDefinitions:
+        - Environment:
+            - Name: SE_OPTS
+              Value: -jettyThreads 1024
+          Essential: True
+          Image: selenium/hub
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref HubLogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: ecs-hub-firefox
+          MemoryReservation: 2048
+          Name: ecs-selenium-hub-firefox
+          PortMappings:
+            - ContainerPort: 4444
+              HostPort: 4455
+              Protocol: tcp
+
+  HubLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: ecs-selenium-hub
+      RetentionInDays: 30
+
+
+  ###################################
+  #             NODES               #
+  ###################################
+
+  SpotFleetRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: spotfleet.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetRole
+
+  NodeRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Policies:
+        - PolicyName: WriteCloudWatchMetrics
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "cloudwatch:PutMetricData"
+                Effect: "Allow"
+                Resource: "*"
+        - PolicyName: EC2Permissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                - ec2:CreateTags
+                - ec2:DescribeTags
+                Effect: Allow
+                Resource: "*"
+
+  NodeInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+        - !Ref NodeRole
+
+  NodeTaskRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+      Policies:
+      - PolicyName: Introspection
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Action:
+              - ecs:Describe*
+              - ec2:DescribeInstances
+              Effect: Allow
+              Resource: "*"
+
+  NodeSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: ecs-selenium-node
+      GroupDescription: ECS Selenium Node Security Group
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref AdminCIDR
+
+  FromHub:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !GetAtt NodeSecurityGroup.GroupId
+      IpProtocol: tcp
+      SourceSecurityGroupId: !GetAtt HubSecurityGroup.GroupId
+      FromPort: 32768
+      ToPort: 65535
+
+  SpotFleet:
+    Type: "AWS::EC2::SpotFleet"
+    Properties:
+      SpotFleetRequestConfigData:
+        SpotPrice: !Ref MaxSpotBidPrice
+        TargetCapacity: !Ref DesiredFleetCapacity
+        IamFleetRole: !GetAtt SpotFleetRole.Arn
+        LaunchSpecifications:
+        - IamInstanceProfile:
+            Arn: !GetAtt NodeInstanceProfile.Arn
+          ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
+          InstanceType: !Ref NodeInstanceType
+          KeyName: !Ref KeyName
+          Monitoring:
+            Enabled: 'true'
+          SecurityGroups:
+          - GroupId: !Ref NodeSecurityGroup
+          SubnetId: !Join [ ", ", !Ref SubnetIds ]
+          UserData:
+            "Fn::Base64":
+              "Fn::Sub": |
+                #!/bin/bash -e
+                yum update -y ecs-init
+                yum install -y aws-cli
+                echo "ECS_CLUSTER=${NodeCluster}" > /etc/ecs/ecs.config
+                echo "ECS_ENABLE_TASK_IAM_ROLE=true" >> /etc/ecs/ecs.config
+                # SpotFleet doesn't yet support tags via CloudFormation
+                aws ec2 create-tags --region ${AWS::Region} --resources $(curl -s http://169.254.169.254/latest/meta-data/instance-id) --tags Key=Name,Value=ecs-selenium-node
+                sysctl -w net.ipv4.conf.all.route_localnet=1
+                iptables --insert FORWARD 1 --in-interface docker+ --destination 169.254.169.254/32 --jump DROP
+                iptables -t nat -A PREROUTING -p tcp -d 169.254.170.2 --dport 80 -j DNAT --to-destination 127.0.0.1:51679
+                iptables -t nat -A OUTPUT -d 169.254.170.2 -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 51679
+                service docker start
+
+  NodeAutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      DesiredCapacity: 0
+      LaunchConfigurationName: !Ref NodeLaunchConfig
+      MaxSize: 10
+      MinSize: 0
+      VPCZoneIdentifier: !Ref SubnetIds
+      Tags:
+      - Key: Name
+        Value: "ecs-selenium-node"
+        PropagateAtLaunch: true
+
+  NodeLaunchConfig:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      AssociatePublicIpAddress: false
+      IamInstanceProfile: !Ref NodeInstanceProfile
+      ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
+      InstanceMonitoring: true
+      InstanceType: t2.small
+      KeyName: !Ref KeyName
+      SecurityGroups:
+      - !Ref NodeSecurityGroup
+      UserData:
+        "Fn::Base64":
+          "Fn::Sub": |
+            #!/bin/bash -e
+            yum update -y ecs-init
+            echo "ECS_CLUSTER=${NodeCluster}" > /etc/ecs/ecs.config
+            echo "ECS_ENABLE_TASK_IAM_ROLE=true" >> /etc/ecs/ecs.config
+            sysctl -w net.ipv4.conf.all.route_localnet=1
+            iptables --insert FORWARD 1 --in-interface docker+ --destination 169.254.169.254/32 --jump DROP
+            iptables -t nat -A PREROUTING -p tcp -d 169.254.170.2 --dport 80 -j DNAT --to-destination 127.0.0.1:51679
+            iptables -t nat -A OUTPUT -d 169.254.170.2 -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 51679
+            service docker start
+
+  NodeCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: ecs-selenium-nodes
+
+  NodeChromeTask:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      TaskRoleArn: !GetAtt NodeTaskRole.Arn
+      Family: ecs-node-chrome
+      NetworkMode: bridge
+      ContainerDefinitions:
+        - Environment:
+            - Name: HUB_PORT_4444_TCP_ADDR
+              Value: !Ref ChromeRecord
+            - Name: HUB_PORT_4444_TCP_PORT
+              Value: 4444
+            - Name: AWS_REGION
+              Value: !Ref "AWS::Region"
+            - Name: CLUSTER
+              Value: !Ref NodeCluster
+          Essential: True
+          Image: !Ref NodeChromeImage
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref NodeLogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: ecs-node-chrome
+          MemoryReservation: 512
+          Name: ecs-node-chrome
+          PortMappings:
+            - ContainerPort: 5555
+              Protocol: tcp
+
+  NodeChromeService:
+    Type: "AWS::ECS::Service"
+    Properties:
+      Cluster: !Ref NodeCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: !Ref DesiredChromeNodes
+      ServiceName: ecs-node-chrome
+      TaskDefinition: !Ref NodeChromeTask
+
+  NodeFirefoxTask:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      TaskRoleArn: !GetAtt NodeTaskRole.Arn
+      Family: ecs-node-firefox
+      NetworkMode: bridge
+      ContainerDefinitions:
+        - Environment:
+            - Name: HUB_PORT_4444_TCP_ADDR
+              Value: !Ref FirefoxRecord
+            - Name: HUB_PORT_4444_TCP_PORT
+              Value: 4444
+            - Name: AWS_REGION
+              Value: !Ref "AWS::Region"
+            - Name: CLUSTER
+              Value: !Ref NodeCluster
+          Essential: True
+          Image: !Ref NodeFirefoxImage
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref NodeLogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: ecs-node-firefox
+          MemoryReservation: 512
+          Name: ecs-node-firefox
+          PortMappings:
+            - ContainerPort: 5555
+              Protocol: tcp
+
+  NodeFirefoxService:
+    Type: "AWS::ECS::Service"
+    Properties:
+      Cluster: !Ref NodeCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: !Ref DesiredFirefoxNodes
+      ServiceName: ecs-node-firefox
+      TaskDefinition: !Ref NodeFirefoxTask
+
+  NodeLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: ecs-selenium-nodes
+      RetentionInDays: 30
+
+Outputs:
+  FirefoxHubURI:
+    Description: URI for the Firefox Hub
+    Value: !Sub "http://${FirefoxRecord}:4444"
+    Export:
+      Name: "FirefoxHubURI"
+
+  ChromeHubURI:
+    Description: URI for the Chrome Hub
+    Value: !Sub "http://${ChromeRecord}:4444"
+    Export:
+      Name: "ChromeHubURI"

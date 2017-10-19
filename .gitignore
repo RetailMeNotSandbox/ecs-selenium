@@ -1,0 +1,4 @@
+*.jar
+/docker/common/selenium
+docker/ecs-node-chrome/common/
+docker/ecs-node-firefox/common/
