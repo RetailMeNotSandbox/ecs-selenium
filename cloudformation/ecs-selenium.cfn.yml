@@ -637,7 +637,7 @@ Resources:
       IamInstanceProfile: !Ref NodeInstanceProfile
       ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
       InstanceMonitoring: true
-      InstanceType: t2.small
+      InstanceType: !Ref NodeInstanceType
       KeyName: !Ref KeyName
       SecurityGroups:
       - !Ref NodeSecurityGroup
