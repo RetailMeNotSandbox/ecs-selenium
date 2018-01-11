@@ -665,6 +665,10 @@ Resources:
       TaskRoleArn: !GetAtt NodeTaskRole.Arn
       Family: ecs-node-chrome
       NetworkMode: bridge
+      Volumes:
+        - Host:
+            SourcePath: "/dev/shm"
+          Name: "shm"
       ContainerDefinitions:
         - Environment:
             - Name: HUB_PORT_4444_TCP_ADDR
@@ -683,11 +687,15 @@ Resources:
               awslogs-group: !Ref NodeLogGroup
               awslogs-region: !Ref "AWS::Region"
               awslogs-stream-prefix: ecs-node-chrome
-          MemoryReservation: 512
+          MemoryReservation: 1024
           Name: ecs-node-chrome
           PortMappings:
             - ContainerPort: 5555
               Protocol: tcp
+          MountPoints:
+            - ContainerPath: /dev/shm
+              SourceVolume: shm
+              ReadOnly: False
 
   NodeChromeService:
     Type: "AWS::ECS::Service"
@@ -706,6 +714,10 @@ Resources:
       TaskRoleArn: !GetAtt NodeTaskRole.Arn
       Family: ecs-node-firefox
       NetworkMode: bridge
+      Volumes:
+        - Host:
+            SourcePath: "/dev/shm"
+          Name: "shm"
       ContainerDefinitions:
         - Environment:
             - Name: HUB_PORT_4444_TCP_ADDR
@@ -724,11 +736,15 @@ Resources:
               awslogs-group: !Ref NodeLogGroup
               awslogs-region: !Ref "AWS::Region"
               awslogs-stream-prefix: ecs-node-firefox
-          MemoryReservation: 512
+          MemoryReservation: 1024
           Name: ecs-node-firefox
           PortMappings:
             - ContainerPort: 5555
               Protocol: tcp
+          MountPoints:
+            - ContainerPath: /dev/shm
+              SourceVolume: shm
+              ReadOnly: False
 
   NodeFirefoxService:
     Type: "AWS::ECS::Service"
