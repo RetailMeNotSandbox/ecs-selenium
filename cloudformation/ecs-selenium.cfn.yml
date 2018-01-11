@@ -37,11 +37,11 @@ Parameters:
   HubInstanceType:
     Description: Hub instance type
     Type: String
-    Default: c4.xlarge
+    Default: c5.xlarge
   NodeInstanceType:
     Description: Node instance type
     Type: String
-    Default: c4.xlarge
+    Default: c5.xlarge
   KeyName:
     Description: The EC2 Key Pair to allow SSH access to the instances
     Type: "AWS::EC2::KeyPair::KeyName"
