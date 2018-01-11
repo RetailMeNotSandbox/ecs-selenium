@@ -50,11 +50,11 @@ $(aws ecr get-login --region <region> --no-include-email)
 
 # firefox
 cd docker/ecs-node-firefox
-make push ACCOUNT_ID=123456789012 REGION=<region>
+make push ACCOUNT_ID=111122223333 REGION=<region>
 
 # chrome
 cd docker/ecs-node-chrome
-make push ACCOUNT_ID=123456789012 REGION=<region>
+make push ACCOUNT_ID=111122223333 REGION=<region>
 ```
 
 ## Setup
