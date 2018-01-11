@@ -27,19 +27,6 @@ The nodes component of the stack consists of an ECS Cluster with a couple of ser
 
 ## Selenium
 
-In order to get selenium working with this ECS stack, a customized version of the server with support for the `-remoteHost` flag is required. This allows the nodes to report the host's IP and container port mapping to the hub.
-
-A PR ([selenium#4027](https://github.com/SeleniumHQ/selenium/pull/4027)) was submitted to the selenium project with support for the flag. It is already merged, and should be available in their containers starting with version `3.7.0`. Until a docker image is released by the selenium team with support for the flag, building the customized version is required.
-
-### Building Selenium
-
-```bash
-cd docker/common/
-make dist
-
-# when it's done, there should be a patched selenium server in 'docker/common'
-```
-
 ### Building the Images
 
 You now need to build and push the node images to your docker registry. ECR is assumed by default.
@@ -68,8 +55,8 @@ aws cloudformation (create-stack|update-stack) \
 --parameters ParameterKey=VpcId,ParameterValue="<vpc-########>" \
              ParameterKey=KeyName,ParameterValue="<keypair>" \
              ParameterKey=SubnetIds,ParameterValue="<subnet--########>,<subnet-########>,..." \
-             ParameterKey=HubInstanceType,ParameterValue="c4.xlarge" \
-             ParameterKey=NodeInstanceType,ParameterValue="c4.xlarge" \
+             ParameterKey=HubInstanceType,ParameterValue="c5.xlarge" \
+             ParameterKey=NodeInstanceType,ParameterValue="c5.xlarge" \
              ParameterKey=AdminCIDR,ParameterValue="<cidr_for_admin_access>" \
              ParameterKey=DesiredFleetCapacity,ParameterValue="<#>" \
              ParameterKey=DesiredChromeNodes,ParameterValue="<#>" \
