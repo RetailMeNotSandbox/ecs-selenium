@@ -1,31 +1,31 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Mappings:
   AMIRegionMap:
-    # amzn-ami-2017.03.g-amazon-ecs-optimized, http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+    # amzn-ami-2017.09.f-amazon-ecs-optimized, http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
     ap-northeast-1:
-      "64": "ami-21815747"
+      "64": "ami-72f36a14"
     ap-northeast-2:
-      "64": "ami-4f08e82d"
+      "64": "ami-59b71737"
     ap-southeast-1:
-      "64": "ami-99f588fa"
+      "64": "ami-e782f29b"
     ap-southeast-2:
-      "64": "ami-4f08e82d"
+      "64": "ami-7aa15c18"
     ca-central-1:
-      "64": "ami-9b54edff"
+      "64": "ami-9afc79fe"
     eu-central-1:
-      "64": "ami-40d5672f"
+      "64": "ami-eacf5d85"
     eu-west-1:
-      "64": "ami-13f7226a"
+      "64": "ami-acb020d5"
     eu-west-2:
-      "64": "ami-eb62708f"
+      "64": "ami-4d809829"
     us-east-1:
-      "64": "ami-ec33cc96"
+      "64": "ami-ba722dc0"
     us-east-2:
-      "64": "ami-34032e51"
+      "64": "ami-13af8476"
     us-west-1:
-      "64": "ami-d5d0e0b5"
+      "64": "ami-9df0f0fd"
     us-west-2:
-      "64": "ami-29f80351"
+      "64": "ami-4d809829"
 Parameters:
   VpcId:
     Type: "AWS::EC2::VPC::Id"
