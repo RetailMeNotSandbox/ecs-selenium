@@ -29,10 +29,6 @@ RUN apt-get update -qqy \
 #========================
 
 RUN pip install boto3 requests boto
-
-# This version of selenium is modified to support --remoteHost
-# See: https://github.com/SeleniumHQ/selenium/pull/4027
-COPY common/selenium-server-standalone.jar /opt/selenium/selenium-server-standalone.jar
 COPY common/ecs-get-port-mapping.py /opt/bin/ecs-get-port-mapping.py
 COPY common/ecs_entry_point.sh /opt/bin/ecs_entry_point.sh
 

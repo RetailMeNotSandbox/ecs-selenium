@@ -9,7 +9,7 @@ clean:
 build:
 	mkdir -p common/
 	rsync -av --exclude='selenium' --exclude='Makefile' ../common/* common/
-	docker build -t ecs-node-firefox --build-arg VERSION=$(VERSION) .
+	docker build -t ecs-node-chrome --build-arg VERSION=$(VERSION) .
 	rm -rf common/
 
 tag: build
