@@ -35,11 +35,17 @@ You now need to build and push the node images to your docker registry. ECR is a
 # login to ecr
 $(aws ecr get-login --region <region> --no-include-email)
 
-# firefox
+# create the ecr ecs-node-firefox repository
+aws --region <region> ecr create-repository --repository-name ecs-node-firefox
+
+# build and push firefox
 cd docker/ecs-node-firefox
 make push ACCOUNT_ID=111122223333 REGION=<region>
 
-# chrome
+# create the ecr ecs-node-chrome repository
+aws --region <region> ecr create-repository --repository-name ecs-node-chrome
+
+# build and push chrome
 cd docker/ecs-node-chrome
 make push ACCOUNT_ID=111122223333 REGION=<region>
 ```
