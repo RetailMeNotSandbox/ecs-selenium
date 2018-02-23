@@ -27,7 +27,7 @@ The nodes component of the stack consists of an ECS Cluster with a couple of ser
 
 ## Selenium
 
-### Creating the ECR Repositories
+### Create the ECR Repositories
 
 Create your repositories before building the images. These commands only need to be run once.
 
@@ -39,7 +39,7 @@ aws --region <region> ecr create-repository --repository-name ecs-node-firefox
 aws --region <region> ecr create-repository --repository-name ecs-node-chrome
 ```
 
-### Building the Images
+### Build the Images
 
 You now need to build and push the node images to your docker registry. ECR is assumed by default. You can rebuild your images periodically to get newer browsers in your cluster.
 
