@@ -29,10 +29,10 @@ The nodes component of the stack consists of an ECS Cluster with a couple of ser
 
 ### Creating the ECR Repositories
 
-These commands only need to be run once. Make sure you run them before building the images.
+Create your repositories before building the images. These commands only need to be run once.
 
 ```
-# create the ecr ecs-node-firefox and ecs-node-chrome repositories
+# create the ecr ecs-node-firefox repository
 aws --region <region> ecr create-repository --repository-name ecs-node-firefox
 
 # create the ecr ecs-node-chrome repository
