@@ -66,13 +66,14 @@ aws cloudformation (create-stack|update-stack) \
 --template-body file://./cloudformation/ecs-selenium.cfn.yml \
 --parameters ParameterKey=VpcId,ParameterValue="<vpc-########>" \
              ParameterKey=KeyName,ParameterValue="<keypair>" \
-             ParameterKey=SubnetIds,ParameterValue="<subnet--########>,<subnet-########>,..." \
+             ParameterKey=SubnetIds,ParameterValue=\"<subnet-xyz123>,<subnet-xyz456>\" \
              ParameterKey=HubInstanceType,ParameterValue="c5.xlarge" \
              ParameterKey=NodeInstanceType,ParameterValue="c5.xlarge" \
              ParameterKey=AdminCIDR,ParameterValue="<cidr_for_admin_access>" \
              ParameterKey=DesiredFleetCapacity,ParameterValue="<#>" \
              ParameterKey=DesiredChromeNodes,ParameterValue="<#>" \
              ParameterKey=DesiredFirefoxNodes,ParameterValue="<#>" \
+             ParameterKey=DomainName,ParameterValue="<company.com>" \
              ParameterKey=NodeFirefoxImage,ParameterValue="<location_of_your_ecs-node-firefox_image>" \
              ParameterKey=NodeChromeImage,ParameterValue="<location_of_your_ecs-node-chrome_image>"
 ```
