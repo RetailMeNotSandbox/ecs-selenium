@@ -27,19 +27,31 @@ The nodes component of the stack consists of an ECS Cluster with a couple of ser
 
 ## Selenium
 
-### Building the Images
+### Create the ECR Repositories
 
-You now need to build and push the node images to your docker registry. ECR is assumed by default.
+Create your repositories before building the images. These commands only need to be run once.
+
+```
+# create the ecr ecs-node-firefox repository
+aws --region <region> ecr create-repository --repository-name ecs-node-firefox
+
+# create the ecr ecs-node-chrome repository
+aws --region <region> ecr create-repository --repository-name ecs-node-chrome
+```
+
+### Build the Images
+
+You now need to build and push the node images to your docker registry. ECR is assumed by default. You can rebuild your images periodically to get newer browsers in your cluster.
 
 ```bash
 # login to ecr
 $(aws ecr get-login --region <region> --no-include-email)
 
-# firefox
+# build and push firefox
 cd docker/ecs-node-firefox
 make push ACCOUNT_ID=111122223333 REGION=<region>
 
-# chrome
+# build and push chrome
 cd docker/ecs-node-chrome
 make push ACCOUNT_ID=111122223333 REGION=<region>
 ```
@@ -54,13 +66,14 @@ aws cloudformation (create-stack|update-stack) \
 --template-body file://./cloudformation/ecs-selenium.cfn.yml \
 --parameters ParameterKey=VpcId,ParameterValue="<vpc-########>" \
              ParameterKey=KeyName,ParameterValue="<keypair>" \
-             ParameterKey=SubnetIds,ParameterValue="<subnet--########>,<subnet-########>,..." \
+             ParameterKey=SubnetIds,ParameterValue=\"<subnet-xyz123>,<subnet-xyz456>\" \
              ParameterKey=HubInstanceType,ParameterValue="c5.xlarge" \
              ParameterKey=NodeInstanceType,ParameterValue="c5.xlarge" \
              ParameterKey=AdminCIDR,ParameterValue="<cidr_for_admin_access>" \
              ParameterKey=DesiredFleetCapacity,ParameterValue="<#>" \
              ParameterKey=DesiredChromeNodes,ParameterValue="<#>" \
              ParameterKey=DesiredFirefoxNodes,ParameterValue="<#>" \
+             ParameterKey=DomainName,ParameterValue="<company.com>" \
              ParameterKey=NodeFirefoxImage,ParameterValue="<location_of_your_ecs-node-firefox_image>" \
              ParameterKey=NodeChromeImage,ParameterValue="<location_of_your_ecs-node-chrome_image>"
 ```
