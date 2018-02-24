@@ -113,3 +113,24 @@ Inside your VPC, hosts can connect to the hubs using the following endpoints:
 * `chrome.example.com:4444`
 
 The ALB uses the domain name prefix to redirect to the proper hub. Domains starting with `firefox.*` will hit the Firefox hub; domains starting with `chrome.*` will hit the Chrome one.
+
+## Troubleshooting
+Service arn:aws:ecs:us-west-1:988474017641:service/ecs-node-firefox did not stabilize.
+
+We've seen this in situations where the cluster is unable to provision the desired amount of nodes. There will be a mismatch between the Desired tasks value and the Running tasks value in the ECS console (Elastic Container Service -> ecs-selenium-nodes -> Services (tab).
+
+It's usually due to hardware capacity. Here's what I would check:
+
+Did you actually get any spot instances? (EC2 -> Spot Requests -> Capacity Column (in the table)
+
+If you didn't get any instances, your bid price may be too low for the region. You can update the MaxSpotBidPrice parameter to something that works for you. (The default is set pretty low, so depending on the region, you may be outbid by others.)
+
+You can look at the SpotFleet's History tab, and it will tell you if it was unable to provision instances due to your bid being too low.
+
+Do you have enough EC2 capacity for the number of nodes you desire?
+
+MemoryReservation is set to 1024 per node. So you'd need 1024 MB * Number of Desired Nodes for it to provision successfully.
+
+If you don't have enough instances for your nodes, you can increase DesiredFleetCapacity to match it, or you can decrease DesiredChromeNodes and DesiredFirefoxNodes to a number that fits within your provisioned instances.
+
+The fact that you don't have any entries in the ecs-selenium-nodes stream seems to indicate that it never provisioned a single node. So I'd start by looking at the SpotFleet.
