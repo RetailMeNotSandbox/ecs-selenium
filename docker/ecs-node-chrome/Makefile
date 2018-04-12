@@ -13,8 +13,8 @@ build:
 	rm -rf common/
 
 tag: build
-	docker tag ecs-node-firefox $(REGISTRY)/ecs-node-chrome:$(VERSION)
-	docker tag ecs-node-firefox $(REGISTRY)/ecs-node-chrome:latest
+	docker tag ecs-node-chrome $(REGISTRY)/ecs-node-chrome:$(VERSION)
+	docker tag ecs-node-chrome $(REGISTRY)/ecs-node-chrome:latest
 
 push: tag
 	docker push $(REGISTRY)/ecs-node-chrome:$(VERSION)
