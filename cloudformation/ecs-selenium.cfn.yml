@@ -64,9 +64,17 @@ Parameters:
     Type: Number
     Default: 1
     Description: Desired number of Chrome nodes
+  MaxChromeNodes:
+    Type: Number
+    Default: 100
+    Description: Desired number of Chrome nodes
   DesiredFirefoxNodes:
     Type: Number
     Default: 1
+    Description: Desired number of Chrome nodes
+  MaxFirefoxNodes:
+    Type: Number
+    Default: 100
     Description: Desired number of Chrome nodes
   NodeChromeImage:
     Type: String
@@ -237,6 +245,11 @@ Resources:
                     "ecs-node-firefox": ${DesiredFirefoxNodes}
                 }
 
+                MAX_CAPACITY = {
+                    "ecs-node-chrome": ${MaxChromeNodes},
+                    "ecs-node-firefox": ${MaxFirefoxNodes}
+                }
+
                 ecs = boto3.client("ecs", region_name="${AWS::Region}")
 
 
@@ -250,6 +263,12 @@ Resources:
                     for svc in ecs.describe_services(cluster=cluster, services=[service])["services"]:
                         if svc["serviceName"] == service:
                             return svc["runningCount"]
+
+
+                def get_pending_count(cluster, service):
+                    for svc in ecs.describe_services(cluster=cluster, services=[service])["services"]:
+                        if svc["serviceName"] == service:
+                            return svc["pendingCount"]
 
 
                 def update_service(cluster, service, desired):
@@ -272,10 +291,14 @@ Resources:
 
                     u_demand = get_unsatisfied_demand(args.host, args.port)
                     running = get_running_count(args.cluster, args.service)
+                    pending = get_pending_count(args.cluster, args.service)
 
                     if args.direction == "up" and u_demand > 0:
-                        desired = u_demand + running
-                        update_service(args.cluster, args.service, desired)
+                        desired = max(u_demand + running, MAX_CAPACITY[args.service])
+                        if pending == 0:  # only update when there are no pending tasks
+                            update_service(args.cluster, args.service, desired)
+                        else:
+                            logger.info("There are pending tasks for service '%s'. Skipping...", service)
                     elif args.direction == "down" and u_demand == 0 and running > DEFAULT_CAPACITY[args.service]:
                         update_service(args.cluster, args.service, DEFAULT_CAPACITY[args.service])
 
