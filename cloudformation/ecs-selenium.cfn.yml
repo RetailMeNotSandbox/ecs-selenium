@@ -625,6 +625,10 @@ Resources:
           ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
           InstanceType: !Ref NodeInstanceType
           KeyName: !Ref KeyName
+          BlockDeviceMappings:
+            - DeviceName: "/dev/xvdcz"
+              Ebs:
+                VolumeSize: !Ref DockerVolumeSize
           Monitoring:
             Enabled: 'true'
           SecurityGroups:
