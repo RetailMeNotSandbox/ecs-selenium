@@ -80,6 +80,10 @@ Parameters:
     Type: String
     Default: 0 0 * * *
     Description: Cron expression for scaling down the nodes to the default capacity (DesiredChromeNodes, DesiredFirefoxNodes).
+  DockerVolumeSize:
+    Type: Number
+    Default: 22
+    Description: Size for EBS volume for Docker image and metadata storage.  # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-ami-storage-config.html
 
 Resources:
 
@@ -634,6 +638,10 @@ Resources:
     Type: "AWS::AutoScaling::LaunchConfiguration"
     Properties:
       AssociatePublicIpAddress: false
+      BlockDeviceMappings:
+        - DeviceName: "/dev/xvdcz"
+          Ebs:
+            VolumeSize: !Ref DockerVolumeSize
       IamInstanceProfile: !Ref NodeInstanceProfile
       ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
       InstanceMonitoring: true
