@@ -67,15 +67,15 @@ Parameters:
   MaxChromeNodes:
     Type: Number
     Default: 100
-    Description: Desired number of Chrome nodes
+    Description: Maximum number of Chrome nodes
   DesiredFirefoxNodes:
     Type: Number
     Default: 1
-    Description: Desired number of Chrome nodes
+    Description: Desired number of Firefox nodes
   MaxFirefoxNodes:
     Type: Number
     Default: 100
-    Description: Desired number of Chrome nodes
+    Description: Maximum number of Firefox nodes
   NodeChromeImage:
     Type: String
     Description: URI to the ecs-node-chrome image.
