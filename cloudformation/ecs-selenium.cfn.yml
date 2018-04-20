@@ -93,7 +93,11 @@ Parameters:
   DockerVolumeSize:
     Type: Number
     Default: 22
-    Description: Size for EBS volume for Docker image and metadata storage.  # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-ami-storage-config.html
+    Description: Size (in GiB) of the EBS volume that Docker users for image and metadata storage.  # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-ami-storage-config.html
+  DockerDeviceName:
+    Type: String
+    Default: "/dev/xvdcz"
+    Description: Name of volume that Docker uses for image and metadata storage.
 
 Resources:
 
@@ -626,7 +630,7 @@ Resources:
           InstanceType: !Ref NodeInstanceType
           KeyName: !Ref KeyName
           BlockDeviceMappings:
-            - DeviceName: "/dev/xvdcz"
+            - DeviceName: !Ref DockerDeviceName
               Ebs:
                 VolumeSize: !Ref DockerVolumeSize
           Monitoring:
@@ -668,7 +672,7 @@ Resources:
     Properties:
       AssociatePublicIpAddress: false
       BlockDeviceMappings:
-        - DeviceName: "/dev/xvdcz"
+        - DeviceName: !Ref DockerDeviceName
           Ebs:
             VolumeSize: !Ref DockerVolumeSize
       IamInstanceProfile: !Ref NodeInstanceProfile
