@@ -1,31 +1,33 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Mappings:
   AMIRegionMap:
-    # amzn-ami-2017.09.f-amazon-ecs-optimized, http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+    # amzn-ami-2017.09.l-amazon-ecs-optimized, http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
     ap-northeast-1:
-      "64": "ami-72f36a14"
+      "64": "ami-a99d8ad5"
     ap-northeast-2:
-      "64": "ami-59b71737"
+      "64": "ami-9d56f9f3"
     ap-southeast-1:
-      "64": "ami-e782f29b"
+      "64": "ami-846144f8"
     ap-southeast-2:
-      "64": "ami-7aa15c18"
+      "64": "ami-efda148d"
     ca-central-1:
-      "64": "ami-9afc79fe"
+      "64": "ami-897ff9ed"
     eu-central-1:
-      "64": "ami-eacf5d85"
+      "64": "ami-9fc39c74"
     eu-west-1:
-      "64": "ami-acb020d5"
+      "64": "ami-2d386654"
     eu-west-2:
-      "64": "ami-4d809829"
+      "64": "ami-2218f945"
+    eu-west-3:
+      "64": "ami-250eb858"
     us-east-1:
-      "64": "ami-ba722dc0"
+      "64": "ami-aff65ad2"
     us-east-2:
-      "64": "ami-13af8476"
+      "64": "ami-64300001"
     us-west-1:
-      "64": "ami-9df0f0fd"
+      "64": "ami-69677709"
     us-west-2:
-      "64": "ami-4d809829"
+      "64": "ami-40ddb938"
 Parameters:
   VpcId:
     Type: "AWS::EC2::VPC::Id"
@@ -62,10 +64,18 @@ Parameters:
     Type: Number
     Default: 1
     Description: Desired number of Chrome nodes
+  MaxChromeNodes:
+    Type: Number
+    Default: 100
+    Description: Maximum number of Chrome nodes
   DesiredFirefoxNodes:
     Type: Number
     Default: 1
-    Description: Desired number of Chrome nodes
+    Description: Desired number of Firefox nodes
+  MaxFirefoxNodes:
+    Type: Number
+    Default: 100
+    Description: Maximum number of Firefox nodes
   NodeChromeImage:
     Type: String
     Description: URI to the ecs-node-chrome image.
@@ -80,6 +90,14 @@ Parameters:
     Type: String
     Default: 0 0 * * *
     Description: Cron expression for scaling down the nodes to the default capacity (DesiredChromeNodes, DesiredFirefoxNodes).
+  DockerVolumeSize:
+    Type: Number
+    Default: 22
+    Description: Size (in GiB) of the EBS volume that Docker users for image and metadata storage.  # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-ami-storage-config.html
+  DockerDeviceName:
+    Type: String
+    Default: "/dev/xvdcz"
+    Description: Name of volume that Docker uses for image and metadata storage.
 
 Resources:
 
@@ -231,6 +249,11 @@ Resources:
                     "ecs-node-firefox": ${DesiredFirefoxNodes}
                 }
 
+                MAX_CAPACITY = {
+                    "ecs-node-chrome": ${MaxChromeNodes},
+                    "ecs-node-firefox": ${MaxFirefoxNodes}
+                }
+
                 ecs = boto3.client("ecs", region_name="${AWS::Region}")
 
 
@@ -244,6 +267,12 @@ Resources:
                     for svc in ecs.describe_services(cluster=cluster, services=[service])["services"]:
                         if svc["serviceName"] == service:
                             return svc["runningCount"]
+
+
+                def get_pending_count(cluster, service):
+                    for svc in ecs.describe_services(cluster=cluster, services=[service])["services"]:
+                        if svc["serviceName"] == service:
+                            return svc["pendingCount"]
 
 
                 def update_service(cluster, service, desired):
@@ -266,10 +295,14 @@ Resources:
 
                     u_demand = get_unsatisfied_demand(args.host, args.port)
                     running = get_running_count(args.cluster, args.service)
+                    pending = get_pending_count(args.cluster, args.service)
 
                     if args.direction == "up" and u_demand > 0:
-                        desired = u_demand + running
-                        update_service(args.cluster, args.service, desired)
+                        desired = max(u_demand + running, MAX_CAPACITY[args.service])
+                        if pending == 0:  # only update when there are no pending tasks
+                            update_service(args.cluster, args.service, desired)
+                        else:
+                            logger.info("There are pending tasks for service '%s'. Skipping...", service)
                     elif args.direction == "down" and u_demand == 0 and running > DEFAULT_CAPACITY[args.service]:
                         update_service(args.cluster, args.service, DEFAULT_CAPACITY[args.service])
 
@@ -596,6 +629,10 @@ Resources:
           ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
           InstanceType: !Ref NodeInstanceType
           KeyName: !Ref KeyName
+          BlockDeviceMappings:
+            - DeviceName: !Ref DockerDeviceName
+              Ebs:
+                VolumeSize: !Ref DockerVolumeSize
           Monitoring:
             Enabled: 'true'
           SecurityGroups:
@@ -634,6 +671,10 @@ Resources:
     Type: "AWS::AutoScaling::LaunchConfiguration"
     Properties:
       AssociatePublicIpAddress: false
+      BlockDeviceMappings:
+        - DeviceName: !Ref DockerDeviceName
+          Ebs:
+            VolumeSize: !Ref DockerVolumeSize
       IamInstanceProfile: !Ref NodeInstanceProfile
       ImageId: !FindInMap [AMIRegionMap, !Ref "AWS::Region", "64"]
       InstanceMonitoring: true
