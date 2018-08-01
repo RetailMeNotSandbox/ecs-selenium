@@ -50,7 +50,7 @@ def get_local_container_info():
 
     if contains_key(ecs_local_task, 'Containers'):
         for c in ecs_local_task['Containers']:
-            if c['DockerId'] == docker_id:
+            if c['DockerID'] == docker_id:
                 ecs_local_container = c
 
     if ecs_local_container is None:
