@@ -1,4 +1,4 @@
-ARG VERSION=3.8.1
+ARG VERSION=3.14.0
 FROM selenium/node-firefox:${VERSION}
 LABEL authors=RetailMeNot
 
