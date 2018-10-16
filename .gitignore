@@ -1,3 +1,4 @@
+.env
 *.jar
 /docker/common/selenium
 docker/ecs-node-chrome/common/
