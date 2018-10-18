@@ -2,6 +2,7 @@ include ../../.env
 export $(shell sed 's/=.*//' ../../.env)
 VERSION=3.14.0
 
+REGISTRY=$(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 
 clean:
 	rm -rf common
