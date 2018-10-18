@@ -1,7 +1,8 @@
+include ../../.env
+export $(shell sed 's/=.*//' ../../.env)
+
 VERSION=3.8.1
-REGION=us-west-2
-ACCOUNT_ID=111122223333
-REGISTRY=$(ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
+REGISTRY=$(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 
 clean:
 	rm -rf common
