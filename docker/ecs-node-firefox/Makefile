@@ -1,7 +1,7 @@
 include ../../.env
 export $(shell sed 's/=.*//' ../../.env)
+VERSION=3.14.0
 
-VERSION=3.8.1
 REGISTRY=$(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 
 clean:
@@ -9,14 +9,14 @@ clean:
 
 build:
 	mkdir -p common/
-	rsync -av --exclude='selenium' --exclude='Makefile' ../common/* common/
-	docker build -t ecs-node-firefox --build-arg VERSION=$(VERSION) .
+	rsync -av ../common/* common/
+	docker build -t $(IMAGE_NAME) --build-arg VERSION=$(VERSION) .
 	rm -rf common/
 
 tag: build
-	docker tag ecs-node-firefox $(REGISTRY)/ecs-node-firefox:$(VERSION)
-	docker tag ecs-node-firefox $(REGISTRY)/ecs-node-firefox:latest
+	docker tag $(IMAGE_NAME) $(REGISTRY)/$(IMAGE_NAME):$(VERSION)
+	docker tag $(IMAGE_NAME) $(REGISTRY)/$(IMAGE_NAME):latest
 
 push: tag
-	docker push $(REGISTRY)/ecs-node-firefox:$(VERSION)
-	docker push $(REGISTRY)/ecs-node-firefox:latest
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(VERSION)
+	docker push $(REGISTRY)/$(IMAGE_NAME):latest
