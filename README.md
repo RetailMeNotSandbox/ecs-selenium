@@ -44,16 +44,20 @@ aws --region <region> ecr create-repository --repository-name ecs-node-chrome
 You now need to build and push the node images to your docker registry. ECR is assumed by default. You can rebuild your images periodically to get newer browsers in your cluster.
 
 ```bash
+# setup environment
+echo "AWS_ACCOUNT_ID=111122223333" > .env
+echo "AWS_REGION=<region>" >> .env
+
 # login to ecr
-$(aws ecr get-login --region <region> --no-include-email)
+$(aws ecr get-login --no-include-email)
 
 # build and push firefox
 cd docker/ecs-node-firefox
-make push ACCOUNT_ID=111122223333 REGION=<region>
+make push
 
 # build and push chrome
 cd docker/ecs-node-chrome
-make push ACCOUNT_ID=111122223333 REGION=<region>
+make push
 ```
 
 ## Setup
