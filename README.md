@@ -27,29 +27,61 @@ The nodes component of the stack consists of an ECS Cluster with a couple of ser
 
 ## Selenium
 
+### Configuration
+
+Setup all environments, before you start
+
+```bash
+# setup environment
+cp .env.sample .env
+```
+
+Replacing the parameters with appropriate values:
+
+```
+AWS_ACCOUNT_ID=<account_id>
+AWS_AWS_REGION=<region>
+
+ECS_SELENIUM_STACK_NAME=ecs-selenium
+ECS_SELENIUM_VPC_ID=<vpc-########>
+ECS_SELENIUM_KEY_PAIR_NAME=<########>
+ECS_SELENIUM_SUBNET_IDS=<subnet-############,subnet-############>
+ECS_SELENIUM_HUB_INSTANCE_TYPE=t3.medium
+ECS_SELENIUM_NODE_INSTANCE_TYPE=c5.xlarge
+ECS_SELENIUM_ADMIN_CIDR=<cidr_for_admin_access: #.#.#.#/#>
+ECS_SELENIUM_DESIRED_FLEET_CAP=<#>
+ECS_SELENIUM_DESIRED_CHROME_NODES=<#>
+ECS_SELENIUM_DESIRED_FIREFOX_NODES=<#>
+ECS_SELENIUM_DOMAIN_NAME=<company.com>
+ECS_SELENIUM_CHROME_IMAGE=<location_of_your_ecs-node-chrome_image>
+ECS_SELENIUM_FIREFOX_IMAGE=<location_of_your_ecs-node-firefox_image>
+ECS_SELENIUM_FIREFOX_REPOSITORY_IMAGE=ecs-node-firefox
+ECS_SELENIUM_FIREFOX_REPOSITORY_VERSION=latest
+ECS_SELENIUM_CHROME_REPOSITORY_IMAGE=ecs-node-chrome
+ECS_SELENIUM_CHROME_REPOSITORY_VERSION=latest
+```
+
 ### Create the ECR Repositories
 
 Create your repositories before building the images. These commands only need to be run once.
 
 ```
-# create the ecr ecs-node-firefox repository
-aws --region <region> ecr create-repository --repository-name ecs-node-firefox
+# create the Firefox ECR repository
+make ecr-create-firefox-node
 
-# create the ecr ecs-node-chrome repository
-aws --region <region> ecr create-repository --repository-name ecs-node-chrome
+# create the Chrome ECR repository
+make ecr-create-chrome-node
 ```
 
 ### Build the Images
 
-You now need to build and push the node images to your docker registry. ECR is assumed by default. You can rebuild your images periodically to get newer browsers in your cluster.
+You now need to build and push the node images to your docker registry. ECR is assumed by default.
+You can rebuild your images periodically to get newer browsers in your cluster.
 
 ```bash
-# setup environment
-echo "AWS_ACCOUNT_ID=111122223333" > .env
-echo "AWS_REGION=<region>" >> .env
 
 # login to ecr
-$(aws ecr get-login --no-include-email)
+make ecr-login
 
 # build and push firefox
 cd docker/ecs-node-firefox
@@ -62,26 +94,17 @@ make push
 
 ## Setup
 
-To get a Selenium Grid up and running with ECS, run the following command (replacing the parameters with appropriate values):
+To get a Selenium Grid up and running with ECS, run the following command:
 
 ```bash
-aws cloudformation (create-stack|update-stack) \
---stack-name "ecs-selenium" --capabilities CAPABILITY_NAMED_IAM \
---template-body file://./cloudformation/ecs-selenium.cfn.yml \
---parameters ParameterKey=VpcId,ParameterValue="<vpc-########>" \
-             ParameterKey=KeyName,ParameterValue="<keypair>" \
-             ParameterKey=SubnetIds,ParameterValue=\"<subnet-xyz123>,<subnet-xyz456>\" \
-             ParameterKey=HubInstanceType,ParameterValue="c5.xlarge" \
-             ParameterKey=NodeInstanceType,ParameterValue="c5.xlarge" \
-             ParameterKey=AdminCIDR,ParameterValue="<cidr_for_admin_access>" \
-             ParameterKey=DesiredFleetCapacity,ParameterValue="<#>" \
-             ParameterKey=DesiredChromeNodes,ParameterValue="<#>" \
-             ParameterKey=DesiredFirefoxNodes,ParameterValue="<#>" \
-             ParameterKey=DomainName,ParameterValue="<company.com>" \
-             ParameterKey=NodeFirefoxImage,ParameterValue="<location_of_your_ecs-node-firefox_image>" \
-             ParameterKey=NodeChromeImage,ParameterValue="<location_of_your_ecs-node-chrome_image>"
+make create-stack
 ```
 
+To update Selenium Grid, run:
+
+```bash
+make update-stack
+```
 
 ## Scaling
 
@@ -101,10 +124,10 @@ Additionally you can manually scale the services via API calls:
 
 ```bash
 # chrome
-aws ecs update-service --cluster ecs-selenium-nodes --service ecs-node-chrome --desired-count <#>
+make count=<#> update-chrome-desired
 
 # firefox
-aws ecs update-service --cluster ecs-selenium-nodes --service ecs-node-firefox --desired-count <#>
+make count=<#> update-firefox-desired
 ```
 
 ## Using the Grid
