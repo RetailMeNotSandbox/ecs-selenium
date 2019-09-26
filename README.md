@@ -40,7 +40,7 @@ Replacing the parameters with appropriate values:
 
 ```
 AWS_ACCOUNT_ID=<account_id>
-AWS_AWS_REGION=<region>
+AWS_REGION=<region>
 
 ECS_SELENIUM_STACK_NAME=ecs-selenium
 ECS_SELENIUM_VPC_ID=<vpc-########>
