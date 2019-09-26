@@ -30,6 +30,10 @@ update-stack:
 		--stack-name $(ECS_SELENIUM_STACK_NAME)  --capabilities CAPABILITY_NAMED_IAM \
 		--template-body file://./cloudformation/ecs-selenium.cfn.yml \
 		$(STACK_PARAMETERS)
+		
+delete-stack:
+	aws cloudformation delete-stack \
+		--stack-name $(ECS_SELENIUM_STACK_NAME)
 
 ecr-login:
 	aws ecr --region $(AWS_REGION) get-login --no-include-email
