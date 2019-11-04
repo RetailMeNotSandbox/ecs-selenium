@@ -21,12 +21,14 @@ STACK_PARAMETERS=--parameters ParameterKey=VpcId,ParameterValue="$(ECS_SELENIUM_
 
 create-stack:
 	aws cloudformation create-stack \
+		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME)  --capabilities CAPABILITY_NAMED_IAM \
 		--template-body file://./cloudformation/ecs-selenium.cfn.yml \
 		$(STACK_PARAMETERS)
 
 update-stack:
 	aws cloudformation update-stack \
+		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME)  --capabilities CAPABILITY_NAMED_IAM \
 		--template-body file://./cloudformation/ecs-selenium.cfn.yml \
 		$(STACK_PARAMETERS)
@@ -46,8 +48,10 @@ ecr-create-chrome-node:
 
 update-chrome-desired: # make count=<#> update-chrome-desired
 	aws ecs update-service --cluster ecs-selenium-nodes \
-		--service $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE) --desired-count $(count)
+		--region $(AWS_REGION) \
+		--service $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE) --desired-count 15
 
 update-firefox-desired: # make count=<#> update-firefox-desired
 	aws ecs update-service --cluster ecs-selenium-nodes \
+		--region $(AWS_REGION) \
 		--service $(ECS_SELENIUM_FIREFOX_REPOSITORY_IMAGE) --desired-count $(count)

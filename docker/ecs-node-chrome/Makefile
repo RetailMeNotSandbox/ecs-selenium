@@ -1,6 +1,6 @@
 include ../../.env
 export $(shell sed 's/=.*//' ../../.env)
-VERSION=3.14.0
+VERSION=3.141.59
 
 REGISTRY=$(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 
@@ -10,13 +10,13 @@ clean:
 build:
 	mkdir -p common/
 	rsync -av ../common/* common/
-	docker build -t $(ECS_SELENIUM_CHROME_IMAGE) --build-arg VERSION=$(ECS_SELENIUM_CHROME_IMAGE) .
+	docker build -t $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE) --build-arg VERSION=$(VERSION) .
 	rm -rf common/
 
 tag: build
-	docker tag $(ECS_SELENIUM_CHROME_IMAGE) $(REGISTRY)/$(ECS_SELENIUM_CHROME_IMAGE):$(VERSION)
-	docker tag $(ECS_SELENIUM_CHROME_IMAGE) $(REGISTRY)/$(ECS_SELENIUM_CHROME_IMAGE):latest
+	docker tag $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE) $(REGISTRY)/$(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE):$(VERSION)
+	docker tag $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE) $(REGISTRY)/$(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE):latest
 
 push: tag
-	docker push $(REGISTRY)/$(ECS_SELENIUM_CHROME_IMAGE):$(VERSION)
-	docker push $(REGISTRY)/$(ECS_SELENIUM_CHROME_IMAGE):latest
+	docker push $(REGISTRY)/$(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE):$(VERSION)
+	docker push $(REGISTRY)/$(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE):latest
