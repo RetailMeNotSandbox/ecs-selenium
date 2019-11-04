@@ -10,13 +10,13 @@ clean:
 build:
 	mkdir -p common/
 	rsync -av ../common/* common/
-	docker build -t $(IMAGE_NAME) --build-arg VERSION=$(VERSION) .
+	docker build -t $(ECS_SELENIUM_FIREFOX_IMAGE) --build-arg VERSION=$(VERSION) .
 	rm -rf common/
 
 tag: build
-	docker tag $(IMAGE_NAME) $(REGISTRY)/$(IMAGE_NAME):$(VERSION)
-	docker tag $(IMAGE_NAME) $(REGISTRY)/$(IMAGE_NAME):latest
+	docker tag $(ECS_SELENIUM_FIREFOX_IMAGE) $(REGISTRY)/$(ECS_SELENIUM_FIREFOX_IMAGE):$(VERSION)
+	docker tag $(ECS_SELENIUM_FIREFOX_IMAGE) $(REGISTRY)/$(ECS_SELENIUM_FIREFOX_IMAGE):latest
 
 push: tag
-	docker push $(REGISTRY)/$(IMAGE_NAME):$(VERSION)
-	docker push $(REGISTRY)/$(IMAGE_NAME):latest
+	docker push $(REGISTRY)/$(ECS_SELENIUM_FIREFOX_IMAGE):$(VERSION)
+	docker push $(REGISTRY)/$(ECS_SELENIUM_FIREFOX_IMAGE):latest
