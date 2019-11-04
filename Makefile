@@ -39,10 +39,10 @@ ecr-login:
 	aws ecr --region $(AWS_REGION) get-login --no-include-email
 
 ecr-create-firefox-node:
-	aws --region $(AWS_AWS_REGION) ecr create-repository --repository-name $(ECS_SELENIUM_FIREFOX_REPOSITORY_IMAGE)
+	aws --region $(AWS_REGION) ecr create-repository --repository-name $(ECS_SELENIUM_FIREFOX_REPOSITORY_IMAGE)
 
 ecr-create-chrome-node:
-	aws --region $(AWS_AWS_REGION) ecr create-repository --repository-name $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE)
+	aws --region $(AWS_REGION) ecr create-repository --repository-name $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE)
 
 update-chrome-desired: # make count=<#> update-chrome-desired
 	aws ecs update-service --cluster ecs-selenium-nodes \
