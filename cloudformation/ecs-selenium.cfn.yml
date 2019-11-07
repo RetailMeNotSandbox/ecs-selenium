@@ -54,7 +54,7 @@ Parameters:
     Description: CIDR with SSH access for management
   MaxSpotBidPrice:
     Type: Number
-    Default: 0.05
+    Default: 0.17
     Description: Maximum price to bid for Spot Instances
   DesiredFleetCapacity:
     Type: Number
@@ -98,6 +98,10 @@ Parameters:
     Type: String
     Default: "/dev/xvdcz"
     Description: Name of volume that Docker uses for image and metadata storage.
+  HubImage:
+    Type: String
+    Default: "selenium/hub:3.141.58"
+    Description: Allows the version number for the image of the selenium hub to be changed.
 
 Resources:
 
@@ -115,6 +119,7 @@ Resources:
         -
           VPCId: !Ref VpcId
           VPCRegion: !Ref "AWS::Region"
+
 
   ChromeRecord:
     Type: "AWS::Route53::RecordSet"
@@ -461,7 +466,7 @@ Resources:
             - Name: SE_OPTS
               Value: -jettyThreads 1024
           Essential: True
-          Image: selenium/hub
+          Image: !Ref HubImage
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -496,7 +501,7 @@ Resources:
             - Name: SE_OPTS
               Value: -jettyThreads 1024
           Essential: True
-          Image: selenium/hub
+          Image: !Ref  HubImage
           LogConfiguration:
             LogDriver: awslogs
             Options:
