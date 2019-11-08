@@ -130,6 +130,14 @@ make count=<#> update-chrome-desired
 make count=<#> update-firefox-desired
 ```
 
+## Making small changes
+
+If your grid is already up and running you may want to consider using changesets to upgrade to make the small change instead of using update stack. 
+
+By using a changeset you can make a small change to the cloudformation template and check what resources will be changed.
+
+This should be useful for updating images. 
+
 ## Using the Grid
 
 The template creates a Route53 hosted zone that can be used inside your VPC. By default, it uses the `example.com` domain name. You can change that by updating the `DomainName` parameter.

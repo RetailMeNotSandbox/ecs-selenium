@@ -47,6 +47,12 @@ view-changeset:
 		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME) \
 		--change-set-name change-set-1
+
+execute-changeset:
+	aws cloudformation execute-change-set \
+		--region $(AWS_REGION) \
+		--stack-name $(ECS_SELENIUM_STACK_NAME) \
+		--change-set-name change-set-1
 		
 delete-stack:
 	aws cloudformation delete-stack \
