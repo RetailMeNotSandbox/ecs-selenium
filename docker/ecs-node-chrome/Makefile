@@ -1,6 +1,6 @@
 include ../../.env
 export $(shell sed 's/=.*//' ../../.env)
-VERSION=3.141.59
+VERSION=$(ECS_SELENIUM_CHROME_REPOSITORY_VERSION)
 
 REGISTRY=$(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 

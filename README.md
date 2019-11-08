@@ -56,9 +56,9 @@ ECS_SELENIUM_DOMAIN_NAME=<company.com>
 ECS_SELENIUM_CHROME_IMAGE=<location_of_your_ecs-node-chrome_image>
 ECS_SELENIUM_FIREFOX_IMAGE=<location_of_your_ecs-node-firefox_image>
 ECS_SELENIUM_FIREFOX_REPOSITORY_IMAGE=ecs-node-firefox
-ECS_SELENIUM_FIREFOX_REPOSITORY_VERSION=latest
+ECS_SELENIUM_FIREFOX_REPOSITORY_VERSION=<numerical_version_number>
 ECS_SELENIUM_CHROME_REPOSITORY_IMAGE=ecs-node-chrome
-ECS_SELENIUM_CHROME_REPOSITORY_VERSION=latest
+ECS_SELENIUM_CHROME_REPOSITORY_VERSION=<numerical_version_number>
 ```
 
 ### Create the ECR Repositories
@@ -77,6 +77,7 @@ make ecr-create-chrome-node
 
 You now need to build and push the node images to your docker registry. ECR is assumed by default.
 You can rebuild your images periodically to get newer browsers in your cluster.
+You can use latest in the ECS_SELENIUM_CHROME_REPOSITORY_VERSION and ECS_SELENIUM_FIREFOX_REPOSITORY_VERSION but it will make ecr messy, images are automatically tagged as latest everytime you push a new image so we reccomend using the version number on dockerhub for the image version.
 
 ```bash
 
