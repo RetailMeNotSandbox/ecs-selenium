@@ -17,11 +17,12 @@ STACK_PARAMETERS=--parameters ParameterKey=VpcId,ParameterValue="$(ECS_SELENIUM_
 				  ParameterKey=DomainName,ParameterValue="$(ECS_SELENIUM_DOMAIN_NAME)" \
 				  ParameterKey=NodeFirefoxImage,ParameterValue="$(NODE_FIREFOX_IMAGE)" \
 				  ParameterKey=NodeChromeImage,ParameterValue="$(NODE_CHROME_IMAGE)" \
-				  ParameterKey=HubImage,ParameterValue="$(ECS_HUB_IMAGE)" 
+				  ParameterKey=HubImage,ParameterValue="$(ECS_HUB_IMAGE)" \
+				  ParameterKey=CreatePrivateHostedZone,ParameterValue="$(CREATE_PRIVATE_HOSTED_ZONE)"
 
 
 create-stack:
-	aws cloudformation create-stack \ 
+	aws cloudformation create-stack \
 		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME)  --capabilities CAPABILITY_NAMED_IAM \
 		--template-body file://./cloudformation/ecs-selenium.cfn.yml \
@@ -56,6 +57,7 @@ execute-changeset:
 		
 delete-stack:
 	aws cloudformation delete-stack \
+		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME)
 
 ecr-login:

@@ -102,24 +102,29 @@ Parameters:
     Type: String
     Default: "selenium/hub:3.141.58"
     Description: Allows the version number for the image of the selenium hub to be changed.
+  CreatePrivateHostedZone:
+    Type: String
+    Default: "true"
+    Description: Whether to host Selenium grid publicly or privately. True for private.
+    AllowedValues: [true, false]
+
+Conditions:
+  ShouldCreatePrivateHostedZone: 
+    !Equals [!Ref CreatePrivateHostedZone, 'true']
 
 Resources:
 
   ###################################
   #              DNS                #
-  ###################################
-
+  ###################################    
   SeleniumHostedZone:
     Type: "AWS::Route53::HostedZone"
     Properties:
       HostedZoneConfig:
         Comment: "selenium-ecs hosted zone"
       Name: !Ref DomainName
-      VPCs:
-        -
-          VPCId: !Ref VpcId
-          VPCRegion: !Ref "AWS::Region"
-
+      VPCs: 
+        - !If [ShouldCreatePrivateHostedZone, [VPCId: !Ref VpcId, VPCRegion: "AWS::Region"], !Ref 'AWS::NoValue']
 
   ChromeRecord:
     Type: "AWS::Route53::RecordSet"
@@ -525,7 +530,6 @@ Resources:
   ###################################
   #             NODES               #
   ###################################
-
   SpotFleetRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -537,8 +541,9 @@ Resources:
             Principal:
               Service: spotfleet.amazonaws.com
       ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetRole
-
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetTaggingRole
+      
+ 
   NodeRole:
     Type: "AWS::IAM::Role"
     Properties:
