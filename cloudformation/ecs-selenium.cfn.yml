@@ -123,8 +123,7 @@ Resources:
       HostedZoneConfig:
         Comment: "selenium-ecs hosted zone"
       Name: !Ref DomainName
-      VPCs: 
-        - !If [ShouldCreatePrivateHostedZone, [VPCId: !Ref VpcId, VPCRegion: "AWS::Region"], !Ref 'AWS::NoValue']
+      VPCs: !If [ShouldCreatePrivateHostedZone, [{VPCId: !Ref VpcId, VPCRegion: !Ref "AWS::Region"}], !Ref 'AWS::NoValue']
 
   ChromeRecord:
     Type: "AWS::Route53::RecordSet"
