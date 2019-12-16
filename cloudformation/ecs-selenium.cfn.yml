@@ -468,7 +468,7 @@ Resources:
       ContainerDefinitions:
         - Environment:
             - Name: SE_OPTS
-              Value: -jettyThreads 1024
+              Value: -jettyThreads 1024 -timeout 60
           Essential: True
           Image: !Ref HubImage
           LogConfiguration:
@@ -503,7 +503,7 @@ Resources:
       ContainerDefinitions:
         - Environment:
             - Name: SE_OPTS
-              Value: -jettyThreads 1024
+              Value: -jettyThreads 1024 -timeout 60
           Essential: True
           Image: !Ref  HubImage
           LogConfiguration:
